@@ -10,8 +10,8 @@ load_dotenv()
 
 #Resets token to ensure authentication repeats for every run
 # May need to be deleted for web deployment
-if os.path.exists(os.getenv('CACHE_PATH')):
-    os.remove(os.getenv('CACHE_PATH'))
+# if os.path.exists(os.getenv('CACHE_PATH')):
+#     os.remove(os.getenv('CACHE_PATH'))
 #Creates a Spotify Client and defines API permissions.
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id = os.getenv('CLIENT_ID'), 
                                                client_secret= os.getenv('CLIENT_SECRET'),
