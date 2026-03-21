@@ -1,0 +1,97 @@
+#Importing all the necessary libraries
+
+import os
+import gunicorn
+import dotenv
+import spotipy
+from spotipy import SpotifyOAuth
+from dotenv import load_dotenv
+import flask
+from flask import Flask, redirect, url_for, render_template, request
+
+#Loads Environment variables
+load_dotenv()
+
+
+#Resets token to ensure authentication repeats for every run
+# May need to be deleted for web deployment
+if os.path.exists(os.getenv('CACHE_PATH')):
+    os.remove(os.getenv('CACHE_PATH'))
+#Creates a Spotify Client and defines API permissions.
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id = os.getenv('CLIENT_ID'), 
+                                               client_secret= os.getenv('CLIENT_SECRET'),
+                                                redirect_uri= os.getenv('REDIRECT_URI'),
+                                                scope = os.getenv('SCOPE'),
+                                                show_dialog=True))
+
+
+
+#Setting up Flask
+app = Flask(__name__)
+
+
+@app.route("/", methods = ["GET","POST"])
+def landing():
+    if request.method == "POST":
+        if "action1" in request.form:
+            print("HELLO WORLD")
+            
+    return(render_template("index.html"))
+
+
+
+@app.route("/spotify", methods = ["GET", "POST"])
+def getSpotify():
+    #Setting Up Variables
+    playlistExists = False
+    playlist_Name = "Yearly Rewind"
+    playlist_Description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
+    playlist_Created = False
+    playlists = sp.current_user_playlists()
+    track_uri = []
+    
+    #Picks up the broadcast
+    if request.method == "POST":
+        print("Posted...")
+        #Specifies which broadcast to act on
+        if "createPlaylist" in request.form:
+            print("Sequence Active.")
+            #SpotifyAPI requests start.
+            #Looks at users playlists
+            for playlist in playlists["items"]:
+                #Checks if the playlist was already created by matching with name(Need to change the matching process)
+                if playlist["name"] == playlist_Name:
+                    #Saves the playlist ID and uses the ID to check the track items
+                    playlist_uri = playlist["uri"]
+                    track_list = sp.playlist_items(playlist_id=playlist_uri)
+                    #Ensures that another playlist isnt made
+                    playlist_Created = True
+                    for tag in track_list["items"]:
+                        #Puts all the track IDs in a list
+                        
+                        track_uri.append(tag["item"]["uri"])
+                        playlistExists = True
+            if playlistExists == True:
+                #If the playlist was already created, it removes all the tracks from the playlist.
+                sp.playlist_remove_all_occurrences_of_items(playlist_id=playlist_uri,items=track_uri)
+
+            if playlist_Created == False:
+                #If the playlist name was not found it creates a new playlist
+                new_playlist = sp.current_user_playlist_create(name= playlist_Name,public=False, description= playlist_Description)
+                for playlist in playlists["items"]:
+                    if playlist["name"] == playlist_Name:
+                        playlist_uri = playlist["uri"]
+            if playlistExists == False:
+                #If playlist is there but there are no tracks the top 20 tracks are added to the playlist
+                data = sp.current_user_top_tracks(limit= 20, time_range= "long_term")
+                top_list = []
+                for item in data["items"]:
+                    song_uri = item["uri"]
+                    top_list.append(song_uri)
+                sp.playlist_add_items(playlist_id=playlist_uri,items=top_list)
+                print("Passed Through...")
+        else:
+            print("Not fetching...")            
+        return(render_template("index.html"))
+#Runs the host site
+app.run()
