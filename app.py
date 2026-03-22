@@ -130,6 +130,7 @@ def getSpotify():
                 if playlist["name"] == playlist_Name:
                     #Saves the playlist ID and uses the ID to check the track items
                     playlist_uri = playlist["uri"]
+                    playlist_id = playlist["id"]
                     track_list = sp.playlist_items(playlist_id=playlist_uri)
                     #Ensures that another playlist isnt made
                     playlist_Created = True
@@ -141,7 +142,7 @@ def getSpotify():
             if playlistExists == True:
                 #If the playlist was already created, it removes all the tracks from the playlist.
                 sp.playlist_remove_all_occurrences_of_items(playlist_id=playlist_uri,items=track_uri)
-                sp.playlist_upload_cover_image(playlist_uri,image_b64)
+                
                 event_status = "All tracks have been deleted. Click the button again to get them back!"
 
             if playlist_Created == False:
@@ -151,7 +152,7 @@ def getSpotify():
                     if playlist["name"] == playlist_Name:
                         playlist_uri = playlist["uri"]
                 event_status = "Just Created a New Playlist!"
-                sp.playlist_upload_cover_image(playlist_uri,image_b64)
+                sp.playlist_upload_cover_image(playlist_id,image_b64)
             if playlistExists == False:
                 #If playlist is there but there are no tracks the top 20 tracks are added to the playlist
                 data = sp.current_user_top_tracks(limit= 20, time_range= "long_term")
@@ -160,7 +161,7 @@ def getSpotify():
                     song_uri = item["uri"]
                     top_list.append(song_uri)
                 sp.playlist_add_items(playlist_id=playlist_uri,items=top_list)
-                sp.playlist_upload_cover_image(playlist_uri,image_b64)
+                
                 print("Passed Through...")
                 event_status = "Check your library for your Yearly Rewind! Click the button again to delete your tracks"
         else:
