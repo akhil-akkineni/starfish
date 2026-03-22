@@ -25,6 +25,13 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 
+
+@app.route("/")
+def landing():
+    return(render_template("index.html"))
+
+
+
 @app.route("/login")
 def login():
     auth_url = SpotifyOAuth(
@@ -53,13 +60,7 @@ def callback():
     return redirect("/spotify")
 
 
-@app.route("/", methods = ["GET","POST"])
-def landing():
-    if request.method == "POST":
-        if "action1" in request.form:
-            print("HELLO WORLD")
-            
-    return(render_template("index.html"))
+
 
 
 
