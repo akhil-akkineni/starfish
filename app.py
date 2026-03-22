@@ -71,7 +71,12 @@ def getSpotify():
     playlist_Name = "Yearly Rewind"
     playlist_Description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
     playlist_Created = False
+    
     token_info = session.get("token_info")
+
+    if not token_info:
+        return redirect("/login")
+        
     sp = spotipy.Spotify(auth=token_info["access_token"])
     playlists = sp.current_user_playlists()
     track_uri = []
