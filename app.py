@@ -49,12 +49,12 @@ def login():
 @app.route("/callback")
 def callback():
 
-        sp_oauth = SpotifyOAuth(
-        client_id=os.getenv("CLIENT_ID"),
-        client_secret=os.getenv("CLIENT_SECRET"),
-        redirect_uri=os.getenv("REDIRECT_URI"),
-        scope=os.getenv("SCOPE")
-    )
+    sp_oauth = SpotifyOAuth(
+    client_id=os.getenv("CLIENT_ID"),
+    client_secret=os.getenv("CLIENT_SECRET"),
+    redirect_uri=os.getenv("REDIRECT_URI"),
+    scope=os.getenv("SCOPE")
+)
     
     code = request.args.get("code")
     token_info = sp_oauth.get_access_token(code)
