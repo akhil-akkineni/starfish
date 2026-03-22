@@ -117,6 +117,7 @@ def getSpotify():
                 #If the playlist was already created, it removes all the tracks from the playlist.
                 sp.playlist_remove_all_occurrences_of_items(playlist_id=playlist_uri,items=track_uri)
                 sp.playlist_upload_cover_image(playlist_uri,image_b64)
+                event_status = "All tracks have been deleted. Click the button again to get them back!"
 
             if playlist_Created == False:
                 #If the playlist name was not found it creates a new playlist
@@ -135,9 +136,10 @@ def getSpotify():
                 sp.playlist_add_items(playlist_id=playlist_uri,items=top_list)
                 sp.playlist_upload_cover_image(playlist_uri,image_b64)
                 print("Passed Through...")
+                event_status = "Check your library for your Yearly Rewind! Click the button again to delete your tracks"
         else:
             print("Not fetching...")            
-    return(render_template("index.html"))
+    return(render_template("index.html", event_status = event_status))
 #Runs the host site
 if __name__ == "__main__":
     import os
