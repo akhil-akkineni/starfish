@@ -95,78 +95,81 @@ def callback():
 
 
 
-@app.route("/spotify", methods = ["GET", "POST"])
+@app.route("/spotify", methods=["GET", "POST"])
 def getSpotify():
-    #Setting Up Variables
-    playlistExists = False
-    playlist_Name = "Yearly Rewind"
-    playlist_Description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
-    playlist_Created = False
+    playlist_name = "Yearly Rewind"
+    playlist_description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
     event_status = ""
-    token_info = get_token()
 
+    #  Get valid token (auto refresh)
+    token_info = get_token()
     if not token_info:
         return redirect("/login")
-        
+
     sp = spotipy.Spotify(auth=token_info["access_token"])
-    
+
+    #  Get playlists safely
     try:
         playlists = sp.current_user_playlists()
     except:
         return redirect("/login")
-    
-    track_uri = []
-    
-    #Picks up the broadcast
-    if request.method == "POST":
-        print("Posted...")
-        #Specifies which broadcast to act on
-        if "createPlaylist" in request.form:
-            print("Sequence Active.")
-            #SpotifyAPI requests start.
-            #Looks at users playlists
-            for playlist in playlists["items"]:
-                #Checks if the playlist was already created by matching with name(Need to change the matching process)
-                if playlist["name"] == playlist_Name:
-                    #Saves the playlist ID and uses the ID to check the track items
-                    playlist_uri = playlist["uri"]
-                    playlist_id = playlist["id"]
-                    track_list = sp.playlist_items(playlist_id=playlist_uri)
-                    #Ensures that another playlist isnt made
-                    playlist_Created = True
-                    for tag in track_list["items"]:
-                        #Puts all the track IDs in a list
-                        
-                        track_uri.append(tag["item"]["uri"])
-                        playlistExists = True
-            if playlistExists == True:
-                #If the playlist was already created, it removes all the tracks from the playlist.
-                sp.playlist_remove_all_occurrences_of_items(playlist_id=playlist_uri,items=track_uri)
-                
-                event_status = "All tracks have been deleted. Click the button again to get them back!"
 
-            if playlist_Created == False:
-                #If the playlist name was not found it creates a new playlist
-                new_playlist = sp.current_user_playlist_create(name= playlist_Name,public=False, description= playlist_Description)
-                for playlist in playlists["items"]:
-                    if playlist["name"] == playlist_Name:
-                        playlist_uri = playlist["uri"]
-                event_status = "Just Created a New Playlist!"
-                sp.playlist_upload_cover_image(playlist_id,image_b64)
-            if playlistExists == False:
-                #If playlist is there but there are no tracks the top 20 tracks are added to the playlist
-                data = sp.current_user_top_tracks(limit= 20, time_range= "long_term")
-                top_list = []
-                for item in data["items"]:
-                    song_uri = item["uri"]
-                    top_list.append(song_uri)
-                sp.playlist_add_items(playlist_id=playlist_uri,items=top_list)
-                
-                print("Passed Through...")
-                event_status = "Check your library for your Yearly Rewind! Click the button again to delete your tracks"
+    if request.method == "POST" and "createPlaylist" in request.form:
+        print("Sequence Active.")
+
+        playlist_id = None
+        track_uris = []
+
+        #  Find existing playlist
+        for playlist in playlists["items"]:
+            if playlist["name"] == playlist_name:
+                playlist_id = playlist["id"]
+
+                track_list = sp.playlist_items(playlist_id=playlist_id)
+
+                for item in track_list["items"]:
+                    if item["item"]:
+                        track_uris.append(item["item"]["uri"])
+
+                break  # stop once found
+
+        #  Create playlist if it doesn't exist
+        if not playlist_id:
+            new_playlist = sp.current_user_playlist_create(
+                name=playlist_name,
+                public=False,
+                description=playlist_description
+            )
+            playlist_id = new_playlist["id"]
+            event_status = "Created new playlist!"
+
+        #  Toggle behavior
+        if track_uris:
+            # Remove all tracks
+            sp.playlist_remove_all_occurrences_of_items(
+                playlist_id=playlist_id,
+                items=track_uris
+            )
+            event_status = "All tracks removed. Click again to regenerate."
         else:
-            print("Not fetching...")            
-    return(render_template("index.html", event_status = event_status))
+            # Add top tracks
+            data = sp.current_user_top_tracks(limit=20, time_range="long_term")
+            top_tracks = [item["uri"] for item in data["items"]]
+
+            sp.playlist_add_items(
+                playlist_id=playlist_id,
+                items=top_tracks
+            )
+            event_status = "Playlist updated with your top tracks!"
+
+        #  Upload cover image (SAFE)
+        try:
+            image_b64 = get_base64_image("static/playlist_ugc.jpg")
+            sp.playlist_upload_cover_image(playlist_id, image_b64)
+        except Exception as e:
+            print("Cover upload failed:", e)
+
+    return render_template("index.html", event_status=event_status)
 #Runs the host site
 if __name__ == "__main__":
     import os
