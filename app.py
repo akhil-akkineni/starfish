@@ -82,14 +82,19 @@ def getSpotify():
     playlist_Name = "Yearly Rewind"
     playlist_Description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
     playlist_Created = False
-    
-    token_info = session.get("token_info")
+    event_status = ""
+    token_info = get_token()
 
     if not token_info:
         return redirect("/login")
         
     sp = spotipy.Spotify(auth=token_info["access_token"])
+    
+    try:
     playlists = sp.current_user_playlists()
+except:
+    return redirect("/login")
+    
     track_uri = []
     
     #Picks up the broadcast
