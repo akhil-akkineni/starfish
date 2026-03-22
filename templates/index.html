@@ -1,27 +1,43 @@
-<h1>Hello World</h1>
+
 <style>
+    container
+    {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+    }
+    @font-face {
+  font-family: 'Circular'; /* Choose any name you like */
+  src: url("{{url_for('static', filename = 'circular-std-medium-500.woff2')}}") format('woff2'),
+       url("{{url_for('static', filename = 'circular-std-medium-500.woff')}}") format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
     h2
     {
       text-align: center;
-      font-family: monospace;
+      font-family: 'Circular';
       letter-spacing: 5px;
-      font-style: normal;
-      font-size: 50px;   
+      font-size: 50px;
+      color: aliceblue;
     }
     button
     {
-        align-self: center;
+        color: whitesmoke;
+        background-color: rgb(65, 182, 65);
         border-radius: 25%;
         width: 60%;
         height: 25%;
     }
     body
     {
-        background-color: darksalmon;
+        background-color: rgb(4, 3, 3);
     }
 </style>
 <body>
-    <pre>
+    
 
 
 
@@ -33,7 +49,9 @@
 
 
     <form method="POST" action="{{url_for('getSpotify')}}"">
-            <button type="submit" name="createPlaylist"> CLICK ME! </button>
+        <div class="container">
+             <button type="submit" name="createPlaylist"> CLICK ME! </button>
+        </div>
     </form>
-</pre>
+
 </body>
