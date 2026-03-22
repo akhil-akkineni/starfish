@@ -25,12 +25,7 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 
-sp_oauth = SpotifyOAuth(
-        client_id=os.getenv("CLIENT_ID"),
-        client_secret=os.getenv("CLIENT_SECRET"),
-        redirect_uri=os.getenv("REDIRECT_URI"),
-        scope=os.getenv("SCOPE")
-    )
+
 
 @app.route("/")
 def landing():
@@ -40,13 +35,26 @@ def landing():
 
 @app.route("/login")
 def login():
-    auth_url = sp_oauth.get_authorize_url()
+        
+        
+    auth_url = SpotifyOAuth(
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        redirect_uri=os.getenv("REDIRECT_URI"),
+        scope=os.getenv("SCOPE")
+    ).get_authorize_url()
     
     return redirect(auth_url)
 
 @app.route("/callback")
 def callback():
-    
+
+        sp_oauth = SpotifyOAuth(
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        redirect_uri=os.getenv("REDIRECT_URI"),
+        scope=os.getenv("SCOPE")
+    )
     
     code = request.args.get("code")
     token_info = sp_oauth.get_access_token(code)
