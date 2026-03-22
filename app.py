@@ -123,7 +123,7 @@ def getSpotify():
                 print("Passed Through...")
         else:
             print("Not fetching...")            
-        return(render_template("index.html"))
+    return(render_template("index.html"))
 #Runs the host site
 if __name__ == "__main__":
     import os
