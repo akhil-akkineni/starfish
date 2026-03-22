@@ -8,7 +8,7 @@ from spotipy import SpotifyOAuth
 from dotenv import load_dotenv
 import flask
 from flask import Flask, redirect, url_for, render_template, request, session
-app.secret_key = os.getenv("SECRET_KEY")
+
 #Loads Environment variables
 load_dotenv()
 
@@ -18,6 +18,13 @@ load_dotenv()
 # if os.path.exists(os.getenv('CACHE_PATH')):
 #     os.remove(os.getenv('CACHE_PATH'))
 #Creates a Spotify Client and defines API permissions.
+
+
+
+#Setting up Flask
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY")
+
 @app.route("/login")
 def login():
     auth_url = SpotifyOAuth(
@@ -44,11 +51,6 @@ def callback():
     session["token_info"] = token_info
     
     return redirect("/spotify")
-
-
-
-#Setting up Flask
-app = Flask(__name__)
 
 
 @app.route("/", methods = ["GET","POST"])
