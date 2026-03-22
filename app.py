@@ -1,5 +1,5 @@
 #Importing all the necessary libraries
-
+import base64
 import os
 import gunicorn
 import dotenv
@@ -20,6 +20,13 @@ load_dotenv()
 #Creates a Spotify Client and defines API permissions.
 
 
+
+
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img:
+        encoded = base64.b64encode(img.read())
+        return encoded.decode("utf-8")
+image_b64 = get_base64_image("static/playlist_ugc.jpg")
 
 #Setting up Flask
 app = Flask(__name__)
@@ -109,6 +116,7 @@ def getSpotify():
             if playlistExists == True:
                 #If the playlist was already created, it removes all the tracks from the playlist.
                 sp.playlist_remove_all_occurrences_of_items(playlist_id=playlist_uri,items=track_uri)
+                sp.playlist_upload_cover_image(playlist_uri,image_b64)
 
             if playlist_Created == False:
                 #If the playlist name was not found it creates a new playlist
@@ -116,6 +124,7 @@ def getSpotify():
                 for playlist in playlists["items"]:
                     if playlist["name"] == playlist_Name:
                         playlist_uri = playlist["uri"]
+                sp.playlist_upload_cover_image(playlist_uri,image_b64)
             if playlistExists == False:
                 #If playlist is there but there are no tracks the top 20 tracks are added to the playlist
                 data = sp.current_user_top_tracks(limit= 20, time_range= "long_term")
@@ -124,6 +133,7 @@ def getSpotify():
                     song_uri = item["uri"]
                     top_list.append(song_uri)
                 sp.playlist_add_items(playlist_id=playlist_uri,items=top_list)
+                sp.playlist_upload_cover_image(playlist_uri,image_b64)
                 print("Passed Through...")
         else:
             print("Not fetching...")            
