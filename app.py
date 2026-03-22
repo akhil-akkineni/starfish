@@ -18,7 +18,19 @@ load_dotenv()
 # if os.path.exists(os.getenv('CACHE_PATH')):
 #     os.remove(os.getenv('CACHE_PATH'))
 #Creates a Spotify Client and defines API permissions.
+def get_token():
+    token_info = session.get("token_info")
 
+    if not token_info:
+        return None
+
+    if sp_oauth.is_token_expired(token_info):
+        token_info = sp_oauth.refresh_access_token(
+            token_info["refresh_token"]
+        )
+        session["token_info"] = token_info
+
+    return token_info
 
 
 
