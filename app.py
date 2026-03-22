@@ -7,22 +7,43 @@ import spotipy
 from spotipy import SpotifyOAuth
 from dotenv import load_dotenv
 import flask
-from flask import Flask, redirect, url_for, render_template, request
-
+from flask import Flask, redirect, url_for, render_template, request, session
+app.secret_key = os.getenv("SECRET_KEY")
 #Loads Environment variables
 load_dotenv()
 
 
 #Resets token to ensure authentication repeats for every run
 # May need to be deleted for web deployment
-if os.path.exists(os.getenv('CACHE_PATH')):
-    os.remove(os.getenv('CACHE_PATH'))
+# if os.path.exists(os.getenv('CACHE_PATH')):
+#     os.remove(os.getenv('CACHE_PATH'))
 #Creates a Spotify Client and defines API permissions.
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id = os.getenv('CLIENT_ID'), 
-                                               client_secret= os.getenv('CLIENT_SECRET'),
-                                                redirect_uri= os.getenv('REDIRECT_URI'),
-                                                scope = os.getenv('SCOPE'),
-                                                show_dialog=True))
+@app.route("/login")
+def login():
+    auth_url = SpotifyOAuth(
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        redirect_uri=os.getenv("REDIRECT_URI"),
+        scope=os.getenv("SCOPE")
+    ).get_authorize_url()
+    
+    return redirect(auth_url)
+
+@app.route("/callback")
+def callback():
+    sp_oauth = SpotifyOAuth(
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        redirect_uri=os.getenv("REDIRECT_URI"),
+        scope=os.getenv("SCOPE")
+    )
+    
+    code = request.args.get("code")
+    token_info = sp_oauth.get_access_token(code)
+    
+    session["token_info"] = token_info
+    
+    return redirect("/spotify")
 
 
 
@@ -47,6 +68,8 @@ def getSpotify():
     playlist_Name = "Yearly Rewind"
     playlist_Description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
     playlist_Created = False
+    token_info = session.get("token_info")
+    sp = spotipy.Spotify(auth=token_info["access_token"])
     playlists = sp.current_user_playlists()
     track_uri = []
     
