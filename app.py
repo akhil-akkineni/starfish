@@ -125,7 +125,7 @@ def getSpotify():
                 for playlist in playlists["items"]:
                     if playlist["name"] == playlist_Name:
                         playlist_uri = playlist["uri"]
-                event_status = "Just Created a New Playlist!")
+                event_status = "Just Created a New Playlist!"
                 sp.playlist_upload_cover_image(playlist_uri,image_b64)
             if playlistExists == False:
                 #If playlist is there but there are no tracks the top 20 tracks are added to the playlist
