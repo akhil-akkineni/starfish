@@ -91,9 +91,9 @@ def getSpotify():
     sp = spotipy.Spotify(auth=token_info["access_token"])
     
     try:
-    playlists = sp.current_user_playlists()
-except:
-    return redirect("/login")
+        playlists = sp.current_user_playlists()
+    except:
+        return redirect("/login")
     
     track_uri = []
     
