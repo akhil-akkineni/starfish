@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy · Yearly Rewind</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: #040303;
+      color: #d9d9d9;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+    }
+    main { max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    h1, h2 { color: aliceblue; }
+    a { color: rgb(110, 190, 120); }
+    li { margin-bottom: 0.4rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Privacy Policy</h1>
+    <p><em>Last updated: November 18, 2026</em></p>
+
+    <p>
+      Yearly Rewind ("the app") is a personal project by Akhil Akkineni. It builds
+      a private playlist of your top tracks in your own Spotify account. This page
+      explains what the app accesses and what it does with it.
+    </p>
+
+    <h2>What the app accesses</h2>
+    <p>When you log in with Spotify, you are asked to grant these permissions:</p>
+    <ul>
+      <li><strong>Your top tracks</strong> (<code>user-top-read</code>): to pick the 20 tracks you've listened to most.</li>
+      <li><strong>Your private playlists</strong> (<code>playlist-read-private</code>): only to check whether a "Yearly Rewind" playlist already exists.</li>
+      <li><strong>Manage your private playlists</strong> (<code>playlist-modify-private</code>): to create the "Yearly Rewind" playlist and add or remove its tracks. No other playlist is changed.</li>
+      <li><strong>Upload images</strong> (<code>ugc-image-upload</code>): to set the "Yearly Rewind" playlist's cover image.</li>
+    </ul>
+
+    <h2>What the app stores</h2>
+    <ul>
+      <li>
+        The app keeps no database and does not save your Spotify data on its server.
+        Your top tracks are read only while the playlist is being built.
+      </li>
+      <li>
+        The login token Spotify issues is kept in a signed session cookie in your
+        browser so you stay logged in. It is removed when you log out or the
+        session ends.
+      </li>
+      <li>
+        The app does not sell, share or analyse your data, does not use it for
+        advertising, and does not use it to train machine-learning models.
+      </li>
+    </ul>
+
+    <h2>Cookies</h2>
+    <p>
+      The app uses a single session cookie, strictly to keep you logged in. It uses
+      no tracking or analytics cookies.
+    </p>
+
+    <h2>Disconnecting and deleting your data</h2>
+    <ul>
+      <li>Click <strong>Log out and disconnect</strong> in the app to remove the token from your browser.</li>
+      <li>
+        To revoke the app's access completely, go to
+        <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener">spotify.com/account/apps</a>
+        and choose <strong>Remove access</strong> for this app.
+      </li>
+      <li>The "Yearly Rewind" playlist is yours. You can delete it in Spotify at any time.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>The app is not directed at children under 13 and does not knowingly collect their data.</p>
+
+    <h2>Spotify</h2>
+    <p>
+      The app uses the Spotify Web API. Spotify's handling of your data is covered by the
+      <a href="https://www.spotify.com/legal/privacy-policy/" target="_blank" rel="noopener">Spotify Privacy Policy</a>.
+      This app is not affiliated with, endorsed or sponsored by Spotify.
+    </p>
+
+    <h2>Contact</h2>
+    <p>Questions or deletion requests: <a href="mailto:CONTACT_EMAIL_HERE">CONTACT_EMAIL_HERE</a></p>
+
+    <p><a href="{{ url_for('landing') }}">← Back to the app</a></p>
+  </main>
+</body>
+</html>

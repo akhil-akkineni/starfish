@@ -1,176 +1,204 @@
-#Importing all the necessary libraries
 import base64
 import os
-import gunicorn
-import dotenv
-import spotipy
-from spotipy import SpotifyOAuth
-from dotenv import load_dotenv
-import flask
-from flask import Flask, redirect, url_for, render_template, request, session
+import secrets
 
-#Loads Environment variables
+import spotipy
+from dotenv import load_dotenv
+from flask import Flask, redirect, render_template, request, session, url_for
+from spotipy.cache_handler import FlaskSessionCacheHandler
+from spotipy.oauth2 import SpotifyOAuth
+
+# Loads environment variables from .env (locally) or the host's config vars.
 load_dotenv()
 
+# Only the permissions this app actually uses (Spotify requires apps to
+# request the minimum scopes they need):
+#   playlist-read-private    find the user's existing "Yearly Rewind" playlist
+#   playlist-modify-private  create the playlist and add/remove its tracks
+#   user-top-read            read the user's top tracks
+#   ugc-image-upload         set the playlist's cover image
+SCOPE = "playlist-read-private playlist-modify-private user-top-read ugc-image-upload"
 
-#Resets token to ensure authentication repeats for every run
-# May need to be deleted for web deployment
-# if os.path.exists(os.getenv('CACHE_PATH')):
-#     os.remove(os.getenv('CACHE_PATH'))
-#Creates a Spotify Client and defines API permissions.
+PLAYLIST_NAME = "Yearly Rewind"
+PLAYLIST_DESCRIPTION = (
+    "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
+)
+COVER_IMAGE_PATH = os.path.join("static", "playlist_ugc.jpg")
+SPOTIFY_LOGO_FILE = "spotify-logo.png"
 
-sp_oauth = SpotifyOAuth(
-    client_id=os.getenv("CLIENT_ID"),
-    client_secret=os.getenv("CLIENT_SECRET"),
-    redirect_uri=os.getenv("REDIRECT_URI"),
-    scope=os.getenv("SCOPE")
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY") or os.getenv("FLASK_SECRET_KEY")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv("REDIRECT_URI", "").startswith("https://"),
 )
 
-def get_token():
-    token_info = session.get("token_info")
 
-    if not token_info:
+def get_oauth(state=None):
+    """Build an OAuth manager whose token is stored only in this user's session.
+
+    The default spotipy file cache (.cache) is shared by every visitor, which
+    would let one user's token be handed to another, so it is not used.
+    """
+    return SpotifyOAuth(
+        client_id=os.getenv("CLIENT_ID"),
+        client_secret=os.getenv("CLIENT_SECRET"),
+        redirect_uri=os.getenv("REDIRECT_URI"),
+        scope=SCOPE,
+        state=state,
+        show_dialog=True,
+        cache_handler=FlaskSessionCacheHandler(session),
+    )
+
+
+def get_spotify_client():
+    """Return a Spotify client for the logged-in user, or None if not logged in."""
+    oauth = get_oauth()
+    if not oauth.validate_token(oauth.cache_handler.get_cached_token()):
         return None
-
-    if sp_oauth.is_token_expired(token_info):
-        token_info = sp_oauth.refresh_access_token(
-            token_info["refresh_token"]
-        )
-        session["token_info"] = token_info
-
-    return token_info
-
+    return spotipy.Spotify(auth_manager=oauth)
 
 
 def get_base64_image(image_path):
     with open(image_path, "rb") as img:
-        encoded = base64.b64encode(img.read())
-        return encoded.decode("utf-8")
-image_b64 = get_base64_image("static/playlist_ugc.jpg")
+        return base64.b64encode(img.read()).decode("utf-8")
 
-#Setting up Flask
-app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY")
 
+def find_playlist(sp, name):
+    """Search all of the user's playlists (not just the first page) by name."""
+    page = sp.current_user_playlists(limit=50)
+    while page:
+        for playlist in page["items"]:
+            if playlist and playlist["name"] == name:
+                return playlist
+        page = sp.next(page) if page.get("next") else None
+    return None
+
+
+def playlist_track_uris(sp, playlist_id):
+    uris = []
+    page = sp.playlist_items(playlist_id=playlist_id)
+    while page:
+        for entry in page["items"]:
+            item = entry.get("item") or entry.get("track")
+            if item and item.get("uri"):
+                uris.append(item["uri"])
+        page = sp.next(page) if page.get("next") else None
+    return uris
+
+
+def render_page(**context):
+    context.setdefault(
+        "show_spotify_logo",
+        os.path.exists(os.path.join(app.static_folder, SPOTIFY_LOGO_FILE)),
+    )
+    context.setdefault("spotify_logo_file", SPOTIFY_LOGO_FILE)
+    return render_template("index.html", **context)
 
 
 @app.route("/")
 def landing():
-    return(render_template("index.html"))
+    logged_in = get_spotify_client() is not None
+    return render_page(logged_in=logged_in, event_status=request.args.get("msg", ""))
 
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
 
 
 @app.route("/login")
 def login():
-        
-        
-    auth_url = SpotifyOAuth(
-        client_id=os.getenv("CLIENT_ID"),
-        client_secret=os.getenv("CLIENT_SECRET"),
-        redirect_uri=os.getenv("REDIRECT_URI"),
-        scope=os.getenv("SCOPE")
-    ).get_authorize_url()
-    
-    return redirect(auth_url)
+    # Random state value protects the OAuth callback against CSRF.
+    state = secrets.token_urlsafe(16)
+    session["oauth_state"] = state
+    return redirect(get_oauth(state=state).get_authorize_url())
+
 
 @app.route("/callback")
 def callback():
+    expected_state = session.pop("oauth_state", None)
+    if not expected_state or request.args.get("state") != expected_state:
+        return redirect(url_for("landing", msg="Login failed. Please try again."))
 
-    sp_oauth = SpotifyOAuth(
-    client_id=os.getenv("CLIENT_ID"),
-    client_secret=os.getenv("CLIENT_SECRET"),
-    redirect_uri=os.getenv("REDIRECT_URI"),
-    scope=os.getenv("SCOPE")
-)
-    
+    if request.args.get("error"):
+        # The user declined the permissions on Spotify's consent screen.
+        return redirect(url_for("landing", msg="Spotify login was cancelled."))
+
     code = request.args.get("code")
-    token_info = sp_oauth.get_access_token(code)
-    
-    session["token_info"] = token_info
-    
-    return redirect("/spotify")
+    if not code:
+        return redirect(url_for("landing", msg="Login failed. Please try again."))
+
+    get_oauth().get_access_token(code, as_dict=False, check_cache=False)
+    return redirect(url_for("get_spotify"))
 
 
-
-
+@app.route("/logout", methods=["POST"])
+def logout():
+    # The token lives only in the session cookie, so clearing it removes
+    # everything this app holds about the user.
+    session.clear()
+    return redirect(
+        url_for("landing", msg="You're logged out. This app no longer holds any of your Spotify data.")
+    )
 
 
 @app.route("/spotify", methods=["GET", "POST"])
-def getSpotify():
-    playlist_name = "Yearly Rewind"
-    playlist_description = "This is a recap of the past year of listening. Brought to you by Akhil Akkineni :)"
+def get_spotify():
+    sp = get_spotify_client()
+    if sp is None:
+        return redirect(url_for("login"))
+
     event_status = ""
-
-    #  Get valid token (auto refresh)
-    token_info = get_token()
-    if not token_info:
-        return redirect("/login")
-
-    sp = spotipy.Spotify(auth=token_info["access_token"])
-
-    #  Get playlists safely
-    try:
-        playlists = sp.current_user_playlists()
-    except:
-        return redirect("/login")
+    playlist_url = None
 
     if request.method == "POST" and "createPlaylist" in request.form:
-        print("Sequence Active.")
-
-        playlist_id = None
-        track_uris = []
-
-        #  Find existing playlist
-        for playlist in playlists["items"]:
-            if playlist["name"] == playlist_name:
-                playlist_id = playlist["id"]
-
-                track_list = sp.playlist_items(playlist_id=playlist_id)
-
-                for item in track_list["items"]:
-                    if item["item"]:
-                        track_uris.append(item["item"]["uri"])
-
-                break  # stop once found
-
-        #  Create playlist if it doesn't exist
-        if not playlist_id:
-            new_playlist = sp.current_user_playlist_create(
-                name=playlist_name,
-                public=False,
-                description=playlist_description
-            )
-            playlist_id = new_playlist["id"]
-            event_status = "Created new playlist!"
-
-        #  Toggle behavior
-        if track_uris:
-            # Remove all tracks
-            sp.playlist_remove_all_occurrences_of_items(
-                playlist_id=playlist_id,
-                items=track_uris
-            )
-            event_status = "All tracks removed. Click again to regenerate."
-        else:
-            # Add top tracks
-            data = sp.current_user_top_tracks(limit=20, time_range="long_term")
-            top_tracks = [item["uri"] for item in data["items"]]
-
-            sp.playlist_add_items(
-                playlist_id=playlist_id,
-                items=top_tracks
-            )
-            event_status = "Playlist updated with your top tracks!"
-
-        #  Upload cover image (SAFE)
         try:
-            image_b64 = get_base64_image("static/playlist_ugc.jpg")
-            sp.playlist_upload_cover_image(playlist_id, image_b64)
-        except Exception as e:
-            print("Cover upload failed:", e)
+            playlist = find_playlist(sp, PLAYLIST_NAME)
+            track_uris = []
 
-    return render_template("index.html", event_status=event_status)
-#Runs the host site
+            if playlist:
+                playlist_id = playlist["id"]
+                track_uris = playlist_track_uris(sp, playlist_id)
+            else:
+                playlist = sp.current_user_playlist_create(
+                    name=PLAYLIST_NAME,
+                    public=False,
+                    description=PLAYLIST_DESCRIPTION,
+                )
+                playlist_id = playlist["id"]
+                event_status = "Created new playlist!"
+
+            playlist_url = playlist.get("external_urls", {}).get("spotify")
+
+            if track_uris:
+                sp.playlist_remove_all_occurrences_of_items(
+                    playlist_id=playlist_id, items=track_uris
+                )
+                event_status = "All tracks removed. Click again to regenerate."
+            else:
+                data = sp.current_user_top_tracks(limit=20, time_range="long_term")
+                top_tracks = [item["uri"] for item in data["items"]]
+                sp.playlist_add_items(playlist_id=playlist_id, items=top_tracks)
+                event_status = "Playlist updated with your top tracks!"
+
+            try:
+                sp.playlist_upload_cover_image(
+                    playlist_id, get_base64_image(COVER_IMAGE_PATH)
+                )
+            except Exception as e:
+                app.logger.warning("Cover upload failed: %s", e)
+
+        except spotipy.SpotifyException as e:
+            app.logger.warning("Spotify API error: %s", e)
+            if e.http_status == 401:
+                session.clear()
+                return redirect(url_for("login"))
+            event_status = "Something went wrong talking to Spotify. Please try again."
+
+    return render_page(logged_in=True, event_status=event_status, playlist_url=playlist_url)
+
+
 if __name__ == "__main__":
-    import os
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))

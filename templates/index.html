@@ -1,74 +1,135 @@
-
-<style>
-    .container
-    {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yearly Rewind</title>
+  <style>
+    :root {
+      --bg: #040303;
+      --text: #d9d9d9;
+      --muted: #a9a9a9;
+      --accent: rgb(60, 141, 70);
     }
-    @font-face {
-  font-family: 'Circular'; /* Choose any name you like */
-  src: url("{{url_for('static', filename = 'circular-std-medium-500.woff2')}}") format('woff2'),
-       url("{{url_for('static', filename = 'circular-std-medium-500.woff')}}") format('woff');
-  font-weight: normal;
-  font-style: normal;
-}
-
-    h2
-    {
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 2rem 1rem;
       text-align: center;
-      font-family: 'Circular';
-      letter-spacing: 5px;
-      font-size: 50px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 7vw, 3.5rem);
+      letter-spacing: 0.2em;
       color: aliceblue;
     }
-    h3
-    {
-        color: rgb(60, 141, 70);
-        font-family: 'Circular';
-        font-size: x-large;
-
+    .byline { margin: 0; font-size: 1.25rem; color: var(--muted); }
+    .intro { max-width: 36rem; margin: 0; line-height: 1.5; color: var(--muted); }
+    .primary {
+      display: inline-block;
+      border: none;
+      border-radius: 999px;
+      padding: 1rem 2.5rem;
+      font: inherit;
+      font-size: clamp(1.25rem, 4vw, 2rem);
+      font-weight: 700;
+      color: whitesmoke;
+      background-color: var(--accent);
+      cursor: pointer;
+      text-decoration: none;
     }
-    button
-    {
-        color: whitesmoke;
-        background-color: rgb(60, 141, 70);
-        border-radius: 20%;
-        width: 60%;
-        height: 25%;
-        font-family: 'Circular';
-        font-size: 100px;
+    .primary:hover, .primary:focus-visible { filter: brightness(1.15); }
+    .status { margin: 0; font-size: 1.25rem; color: var(--accent); min-height: 1.5em; }
+    .open-spotify {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      color: var(--text);
+      font-weight: 700;
     }
-    body
-    {
-        background-color: rgb(4, 3, 3);
-        color: darkgray;
+    .open-spotify img { height: 24px; width: auto; }
+    .link-button {
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: var(--muted);
+      text-decoration: underline;
+      cursor: pointer;
     }
-</style>
+    footer {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    footer a { color: var(--muted); }
+    .attribution img { height: 21px; width: auto; vertical-align: middle; margin-left: 0.4rem; }
+  </style>
+</head>
 <body>
-    <pre>
+  <main>
+    <h1>Time To Rewind...</h1>
+    <p class="byline">Brought to you by Akhil Akkineni</p>
 
+    {% if logged_in %}
+      <p class="intro">
+        Click below to build a private playlist on your account called
+        "Yearly Rewind" from your top 20 tracks. Click again to clear it.
+      </p>
+      <form method="POST" action="{{ url_for('get_spotify') }}">
+        <button class="primary" type="submit" name="createPlaylist">Make my Rewind</button>
+      </form>
+    {% else %}
+      <p class="intro">
+        Log in with Spotify to turn your top 20 tracks into a private playlist
+        called "Yearly Rewind" on your account.
+        See the <a href="{{ url_for('privacy') }}">privacy policy</a> for what this app accesses.
+      </p>
+      <a class="primary" href="{{ url_for('login') }}">Log in with Spotify</a>
+    {% endif %}
 
+    <p class="status" role="status">{{ event_status }}</p>
 
-        
+    {% if playlist_url %}
+      <a class="open-spotify" href="{{ playlist_url }}" target="_blank" rel="noopener">
+        {% if show_spotify_logo %}<img src="{{ url_for('static', filename=spotify_logo_file) }}" alt="Spotify">{% endif %}
+        Open in Spotify
+      </a>
+    {% endif %}
 
-    <H2>Time To Rewind...</H2>
+    {% if logged_in %}
+      <form method="POST" action="{{ url_for('logout') }}">
+        <button class="link-button" type="submit">Log out and disconnect</button>
+      </form>
+    {% endif %}
+  </main>
 
-    <h1 class="container">Brought to you by Akhil Akkineni</h1>
-    
-
-    <form method="POST" action="{{url_for('getSpotify')}}"">
-        <div class="container">
-             <button type="submit" name="createPlaylist"> CLICK ME! </button>
-        </div>
-    </form>
-
-
-
-
-
-    <h3 class="container">{{event_status}}</h3>
-
-    </pre>
+  <footer>
+    <div class="attribution">
+      Music data and playlists provided by
+      {% if show_spotify_logo %}<img src="{{ url_for('static', filename=spotify_logo_file) }}" alt="Spotify">{% else %}Spotify{% endif %}.
+    </div>
+    <div>
+      This app is not affiliated with, endorsed or sponsored by Spotify.
+      Spotify is a trademark of Spotify AB.
+    </div>
+    <div><a href="{{ url_for('privacy') }}">Privacy policy</a></div>
+  </footer>
 </body>
+</html>
