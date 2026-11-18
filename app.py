@@ -5,6 +5,7 @@ import gunicorn
 import dotenv
 import spotipy
 from spotipy import SpotifyOAuth
+from spotipy.cache_handler import FlaskSessionCacheHandler
 from dotenv import load_dotenv
 import flask
 from flask import Flask, redirect, url_for, render_template, request, session
@@ -23,7 +24,12 @@ sp_oauth = SpotifyOAuth(
     client_id=os.getenv("CLIENT_ID"),
     client_secret=os.getenv("CLIENT_SECRET"),
     redirect_uri=os.getenv("REDIRECT_URI"),
-    scope=os.getenv("SCOPE")
+    scope=os.getenv("SCOPE"),
+    # Keep each user's token in their own session. The default .cache file is
+    # shared by every visitor, which gave new users the first user's token.
+    cache_handler=FlaskSessionCacheHandler(session),
+    # Always show Spotify's account screen so people can pick the right account.
+    show_dialog=True,
 )
 
 def get_token():
@@ -50,7 +56,7 @@ image_b64 = get_base64_image("static/playlist_ugc.jpg")
 
 #Setting up Flask
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY")
+app.secret_key = os.getenv("SECRET_KEY") or os.getenv("FLASK_SECRET_KEY")
 
 
 
@@ -64,27 +70,19 @@ def landing():
 def login():
         
         
-    auth_url = SpotifyOAuth(
-        client_id=os.getenv("CLIENT_ID"),
-        client_secret=os.getenv("CLIENT_SECRET"),
-        redirect_uri=os.getenv("REDIRECT_URI"),
-        scope=os.getenv("SCOPE")
-    ).get_authorize_url()
+    auth_url = sp_oauth.get_authorize_url()
     
     return redirect(auth_url)
 
 @app.route("/callback")
 def callback():
 
-    sp_oauth = SpotifyOAuth(
-    client_id=os.getenv("CLIENT_ID"),
-    client_secret=os.getenv("CLIENT_SECRET"),
-    redirect_uri=os.getenv("REDIRECT_URI"),
-    scope=os.getenv("SCOPE")
-)
-    
     code = request.args.get("code")
-    token_info = sp_oauth.get_access_token(code)
+    if not code:
+        # The user cancelled on Spotify's login screen.
+        return redirect("/")
+    # check_cache=False: always exchange this user's code, never reuse a saved token.
+    token_info = sp_oauth.get_access_token(code, check_cache=False)
     
     session["token_info"] = token_info
     
@@ -104,6 +102,9 @@ def getSpotify():
     #  Get valid token (auto refresh)
     token_info = get_token()
     if not token_info:
+        # Remember the click so the playlist is built once they're back from login.
+        if request.method == "POST" and "createPlaylist" in request.form:
+            session["pending_create"] = True
         return redirect("/login")
 
     sp = spotipy.Spotify(auth=token_info["access_token"])
@@ -114,7 +115,8 @@ def getSpotify():
     except:
         return redirect("/login")
 
-    if request.method == "POST" and "createPlaylist" in request.form:
+    clicked = request.method == "POST" and "createPlaylist" in request.form
+    if clicked or session.pop("pending_create", False):
         print("Sequence Active.")
 
         playlist_id = None
